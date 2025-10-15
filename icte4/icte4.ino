@@ -1,63 +1,57 @@
-#include "soc/gpio_reg.h"
-#include "soc/soc.h"
-#include "esp32/rom/ets_sys.h"
+// Filename: icte4.ino
+// Authors: Sam Mansouri and Matthew Calim
+// Date: 10/15/2025
+// Description: This code blinks two LEDs at different rates and reads a potentiometer value every 100ms.
 
-#define LED1 2
-#define LED2 4
-#define POT_PIN 34
+// ===== Constants =====
+const int LED1 = 19; // first LED
+const int LED2 = 18; // other led
+const int POTENT_PIN = 4; // potentiometer signal
 
-// Bitmasks
-#define LED1_MASK (1ULL << LED1)
-#define LED2_MASK (1ULL << LED2)
+// need to set the time periods 
+const unsigned long time_LED1 = 200;
+const unsigned long time_LED2 = 750;
+const unsigned long time_POTENT = 100;
 
-// Task intervals (microseconds)
-const unsigned long intervalLED1 = 500000;  // 0.5s
-const unsigned long intervalLED2 = 1000000; // 1s
-const unsigned long intervalPOT  = 200000;  // 0.2s
+// ===== Global Variables =====
+// need to store the last timestamp, keep track of when the led last blinked and when pot last printed
+unsigned long t1 = 0, t2 = 0, tp = 0;
 
-unsigned long prevLED1 = 0;
-unsigned long prevLED2 = 0;
-unsigned long prevPOT  = 0;
-
-// States
-bool led1State = false;
-bool led2State = false;
+// keep track of LEDs current state (on or off)
+bool s1 = false, s2 = false;
 
 void setup() {
+
+  pinMode(LED1, OUTPUT); // setting outputs
+  pinMode(LED2, OUTPUT); // setting output
+  digitalWrite(LED1, LOW); // initial set to low
+  digitalWrite(LED2, LOW); // intiial set to low
+
   Serial.begin(115200);
 
-  // Configure GPIOs as output (set bits in GPIO_ENABLE_REG)
-  REG_WRITE(GPIO_ENABLE_W1TS_REG, LED1_MASK | LED2_MASK);
 }
 
 void loop() {
-  unsigned long now = micros();
 
-  // Task 1: Toggle LED1
-  if (now - prevLED1 >= intervalLED1) {
-    prevLED1 = now;
-    led1State = !led1State;
-    if (led1State)
-      REG_WRITE(GPIO_OUT_W1TS_REG, LED1_MASK); // Set
-    else
-      REG_WRITE(GPIO_OUT_W1TC_REG, LED1_MASK); // Clear
+  unsigned long now = millis(); // timestamp per pass (recommended by gpt)
+
+  if (now - t1 >= time_LED1) { // checking that 200ms have passed
+    s1 = !s1; // togglging the state, flip it
+    digitalWrite(LED1, s1); // updating the LED state
+    t1 = now;  // this is the new toggle time reference
   }
 
-  // Task 2: Toggle LED2
-  if (now - prevLED2 >= intervalLED2) {
-    prevLED2 = now;
-    led2State = !led2State;
-    if (led2State)
-      REG_WRITE(GPIO_OUT_W1TS_REG, LED2_MASK);
-    else
-      REG_WRITE(GPIO_OUT_W1TC_REG, LED2_MASK);
+  if (now - t2 >= time_LED2) { // checking that 750ms have passed
+    s2 = !s2; // togglging the state, flip it
+    digitalWrite(LED2, s2); // updating the LED state
+    t2 = now;  // this is the new toggle time reference
   }
 
-  // Task 3: Potentiometer read
-  if (now - prevPOT >= intervalPOT) {
-    prevPOT = now;
-    int potValue = analogRead(POT_PIN);
-    Serial.print("Potentiometer: ");
-    Serial.println(potValue);
+  if (now - tp >= time_POTENT) { // checking that 200ms have passed
+    int raw = analogRead(POTENT_PIN); // pulling 0-4095 value
+    Serial.print("Potentiometer reading: ");
+    Serial.println(raw);
+    tp = now;  // this is the new toggle time reference
   }
+
 }
